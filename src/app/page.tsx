@@ -1,63 +1,63 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useBrandStore } from "@/stores/useBrandStore";
+import { ConfigForm } from "@/components/brand-architect/ConfigForm";
+import { StageNavigator } from "@/components/brand-architect/StageNavigator";
+import { SwipeDeck } from "@/components/brand-architect/SwipeDeck";
+import { ArrowLeft, Sparkles } from "lucide-react";
 
 export default function Home() {
-  const [apiMessage, setApiMessage] = useState<string>(
-    "Loading from backend...",
-  );
+  const { isConfigured, brandContext, resetAll } = useBrandStore();
 
-  useEffect(() => {
-    fetch("/api/hello")
-      .then((res) => {
-        if (!res.ok) throw new Error("Network response was not ok");
-        return res.json();
-      })
-      .then((data) => setApiMessage(data.message))
-      .catch((err) =>
-        setApiMessage("Failed to fetch API: Is the backend running?"),
-      );
-  }, []);
+  // ── Phase 1: Config Form ──
+  if (!isConfigured) {
+    return <ConfigForm />;
+  }
 
-  console.log(apiMessage);
-
+  // ── Phase 2: Workspace (Swipe Deck + Stage Navigator) ──
   return (
-    <div className="flex flex-col flex-1 items-center justify-center min-h-screen bg-zinc-50 font-sans dark:bg-black text-black dark:text-white">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-center py-32 px-16 space-y-12 text-center">
-        <Image
-          className="dark:invert mb-8 transition-transform duration-500 hover:scale-110"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={150}
-          height={30}
-          priority
-        />
+    <div className="min-h-screen bg-background bg-particles">
+      {/* Decorative gradients */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-60 -right-60 h-[500px] w-[500px] rounded-full bg-brand-gold/4 blur-[100px]" />
+        <div className="absolute -bottom-60 -left-60 h-[500px] w-[500px] rounded-full bg-brand-teal/4 blur-[100px]" />
+      </div>
 
-        <div className="flex flex-col items-center gap-6">
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-blue-500 to-emerald-500">
-            Next.js + FastAPI
-          </h1>
-          <p className="max-w-md text-lg text-zinc-600 dark:text-zinc-400">
-            Seamlessly rendering Next.js UI using a backend powered by Python.
-          </p>
-        </div>
+      {/* Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-brand-black/60 border-b border-brand-gold/8">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={resetAll}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-brand-gold transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Start Over
+          </button>
 
-        <div className="relative group w-full max-w-md p-px rounded-2xl bg-linear-to-r from-teal-400 via-blue-500 to-purple-600">
-          <div className="absolute inset-0 bg-linear-to-r from-teal-400 via-blue-500 to-purple-600 blur opacity-40 group-hover:opacity-80 transition duration-500"></div>
-          <div className="relative bg-white dark:bg-zinc-950 rounded-2xl p-8 flex flex-col items-center gap-4 transition-transform hover:-translate-y-1">
-            <span className="text-sm uppercase tracking-widest text-zinc-500 font-semibold mb-2">
-              Backend Response
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-brand-gold" />
+            <span className="text-sm font-semibold text-brand-cream">
+              {brandContext?.brand_name}
             </span>
-            <div className="text-2xl font-medium text-zinc-800 dark:text-zinc-100 flex items-center justify-center min-h-16">
-              {apiMessage === "Loading from backend..." ? (
-                <span className="animate-pulse">{apiMessage}</span>
-              ) : (
-                apiMessage
-              )}
-            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] tracking-wider uppercase text-muted-foreground/50">
+              {brandContext?.vibe}
+            </span>
           </div>
         </div>
+      </header>
+
+      {/* Stage Navigator */}
+      <div className="py-6 sm:py-8">
+        <StageNavigator />
+      </div>
+
+      {/* Swipe Deck */}
+      <main className="max-w-xl mx-auto px-4 sm:px-6 pb-12">
+        <SwipeDeck />
       </main>
     </div>
   );
