@@ -1,8 +1,8 @@
 // sample imports
-import { useDocumentStore } from "@/stores/useDocumentStore";
-import { useConversationsStore, OPTIONS } from "@/stores/useConverstionsStore";
-import { DocumentType } from "@/types/document-generation";
-import { cn } from "@/lib/utils";
+// import { useDocumentStore } from "@/stores/useDocumentStore";
+// import { useConversationsStore, OPTIONS } from "@/stores/useConverstionsStore";
+// import { DocumentType } from "@/types/document-generation";
+// import { cn } from "@/lib/utils";
 
 export function ConfigForm() {
   const { drafting, updateDraftingConfig } = useDocumentStore();
