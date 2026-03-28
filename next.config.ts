@@ -4,18 +4,29 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   rewrites: async () => {
-    return {
-      beforeFiles: [
-        {
-          source: "/api/:path*",
-          destination:
-            process.env.NODE_ENV === "development"
-              ? "http://127.0.0.1:8000/api/:path*"
-              : (process.env.PYTHON_API_URL ?? "http://127.0.0.1:8000") +
-                "/api/:path*",
-        },
-      ],
-    };
+    return [
+      {
+        source: "/api/:path*",
+        destination:
+          process.env.NODE_ENV === "development"
+            ? "http://127.0.0.1:8000/api/:path*"
+            : "/api/",
+      },
+      {
+        source: "/docs",
+        destination:
+          process.env.NODE_ENV === "development"
+            ? "http://127.0.0.1:8000/api/docs"
+            : "/api/docs",
+      },
+      {
+        source: "/openapi.json",
+        destination:
+          process.env.NODE_ENV === "development"
+            ? "http://127.0.0.1:8000/api/openapi.json"
+            : "/api/openapi.json",
+      },
+    ];
   },
 };
 
