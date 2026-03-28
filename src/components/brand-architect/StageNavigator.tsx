@@ -34,7 +34,7 @@ export function StageNavigator() {
           const isActive = currentStage === stage.id;
           const isAccepted = phase.status === "accepted";
           const isError = phase.status === "error";
-          const hasAsset = phase.asset !== null;
+          const hasAsset = phase.assets && phase.assets.length > 0;
 
           return (
             <button
