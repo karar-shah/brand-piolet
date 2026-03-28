@@ -64,7 +64,8 @@ export interface BrandAsset {
 export type AssetStatus = "pending" | "accepted" | "rejected" | "loading" | "error";
 
 export interface PhaseState {
-  asset: BrandAsset | null;
+  assets: BrandAsset[];
+  currentIndex: number;
   status: AssetStatus;
   error: string | null;
   /** User's phase-specific config overrides used during generation */
@@ -82,28 +83,32 @@ export interface GenerateInitialRequest {
 }
 
 export interface GenerateInitialResponse {
-  assets: BrandAsset[];
+  options: {
+    content: string;
+    confidence_score: number;
+  }[];
 }
 
 export interface RefineAssetRequest {
   type: AssetType;
+  brandContext: Partial<BrandContext>;
   previous_content: string;
   user_feedback: string;
-  brand_context: Partial<BrandContext>;
-  attached_context?: AttachedContext[];
+  attachedContext?: AttachedContext[];
 }
 
 export interface RetryAssetRequest {
   type: AssetType;
-  brand_context: Partial<BrandContext>;
-  phase_config: Record<string, string>;
-  attached_context?: AttachedContext[];
+  brandContext: Partial<BrandContext>;
+  phaseConfig: Record<string, string>;
+  attachedContext?: AttachedContext[];
 }
 
 export interface RefineAssetResponse {
-  content: string;
-  confidence_score: number;
-  ai_acknowledgement: string;
+  options: {
+    content: string;
+    confidence_score: number;
+  }[];
 }
 
 export interface AttachedContext {

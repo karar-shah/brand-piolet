@@ -8,42 +8,10 @@ import type {
   StageId,
   BrandAsset,
   AttachedContext,
+  GenerateInitialResponse,
+  RefineAssetResponse
 } from "@/types/brand";
 import { STAGES } from "@/types/brand";
-
-// ─── Mock Data (used while backend is unavailable) ──────────────────
-
-const MOCK_ASSETS: Record<AssetType, BrandAsset> = {
-  tagline: {
-    id: "mock-1",
-    type: "tagline",
-    content: "Pawsitively Connected — Where every wag meets innovation.",
-    confidence_score: 88,
-  },
-  visual_concept: {
-    id: "mock-2",
-    type: "visual_concept",
-    content:
-      "A vibrant gradient background transitioning from warm coral to deep indigo, with floating geometric shapes that subtly form a paw print constellation. Typography uses a bold sans-serif in cream white.",
-    confidence_score: 75,
-  },
-  logo_concept: {
-    id: "mock-3",
-    type: "logo_concept",
-    content:
-      "A minimalist wireframe of a dog bone morphing into a smartphone silhouette, rendered in neon teal on a charcoal background. Clean lines with rounded corners suggest approachability.",
-    confidence_score: 82,
-  },
-  marketing_content: {
-    id: "mock-4",
-    type: "marketing_content",
-    content:
-      "🐾 Meet your pet's new best friend. Urban Paws brings smart tech to the world's most loyal companions. Track their health, connect with local pet communities, and discover curated products — all in one app. Download now and join 50,000+ happy pet parents.",
-    confidence_score: 91,
-  },
-};
-
-// ─── Store Shape ────────────────────────────────────────────────────
 
 interface BrandStore {
   // ── Global ──
@@ -60,6 +28,7 @@ interface BrandStore {
 
   // ── Actions: Navigation ──
   setStage: (stage: StageId) => void;
+  setAssetIndex: (type: AssetType, index: number) => void;
 
   // ── Actions: Asset lifecycle ──
   generatePhaseAsset: (type: AssetType) => Promise<void>;
@@ -77,11 +46,12 @@ interface BrandStore {
 
   // ── Helpers ──
   getPhase: (type: AssetType) => PhaseState;
-  getAcceptedPhases: () => { type: AssetType; content: string }[];
+  getAcceptedPhases: () => AttachedContext[];
 }
 
 const defaultPhaseState: PhaseState = {
-  asset: null,
+  assets: [],
+  currentIndex: 0,
   status: "pending",
   error: null,
   phaseConfig: {},
@@ -93,8 +63,6 @@ const createDefaultPhases = (): Record<AssetType, PhaseState> => ({
   logo_concept: { ...defaultPhaseState },
   marketing_content: { ...defaultPhaseState },
 });
-
-// ─── Store ──────────────────────────────────────────────────────────
 
 export const useBrandStore = create<BrandStore>((set, get) => ({
   brandContext: null,
@@ -115,13 +83,18 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
 
   // ── Navigation ──
   setStage: (stage) => set({ currentStage: stage }),
+  
+  setAssetIndex: (type, index) => {
+    const phases = { ...get().phases };
+    phases[type] = { ...phases[type], currentIndex: index };
+    set({ phases });
+  },
 
-  // ── Fetch asset for a specific phase (mock for now) ──
+  // ── Fetch Asset ──
   generatePhaseAsset: async (type) => {
     const { brandContext, getAcceptedPhases } = get();
     if (!brandContext) return;
 
-    // Set target phase to loading
     const phases = get().phases;
     set({
       phases: {
@@ -134,30 +107,39 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
       },
     });
 
-    // Simulate API call with delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     try {
       const acceptedContext = getAcceptedPhases();
-      // TODO: Replace with actual fetch to /api/generate-phase
-      // const res = await fetch("/api/generate-phase", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ brandContext, type, attachedContext: acceptedContext }),
-      // });
-      // const data: GenerateInitialResponse = await res.json();
+      
+      const res = await fetch("/api/generate-phase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandContext, type, attachedContext: acceptedContext.length ? acceptedContext : undefined }),
+      });
+      if (!res.ok) {
+         const errData = await res.json().catch(()=>({}));
+         let msg = errData.detail || "API request failed";
+         if (typeof msg !== 'string') msg = JSON.stringify(msg);
+         throw new Error(msg);
+      }
+      const data: GenerateInitialResponse = await res.json();
 
-      const mockAsset = MOCK_ASSETS[type];
+      const newAssets: BrandAsset[] = data.options.map((opt, i) => ({
+         id: `${type}-${Date.now()}-${i}`,
+         type,
+         content: opt.content,
+         confidence_score: opt.confidence_score
+      }));
+
       const updatedPhases = { ...get().phases };
       updatedPhases[type] = {
         ...updatedPhases[type],
-        asset: { ...mockAsset, id: `${mockAsset.id}-${Date.now()}` },
+        assets: newAssets,
+        currentIndex: 0,
         status: "pending",
         error: null,
       };
       set({ phases: updatedPhases });
     } catch (err) {
-      // Preserve user config on error
       const errorPhases = { ...get().phases };
       errorPhases[type] = {
         ...errorPhases[type],
@@ -175,46 +157,50 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     set({ phases });
   },
 
-  // ── Refine (improve current) ──
+  // ── Refine ──
   refineAsset: async (type, feedback, attachedContext) => {
     const state = get();
     const phase = state.phases[type];
-    if (!phase.asset) return;
+    if (!phase.assets || phase.assets.length === 0) return;
 
     const phases = { ...state.phases };
     phases[type] = { ...phases[type], status: "loading", error: null };
     set({ phases });
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
     try {
-      // TODO: Replace with actual fetch to /api/refine-asset
-      // const res = await fetch("/api/refine-asset", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     type,
-      //     previous_content: phase.asset.content,
-      //     user_feedback: feedback,
-      //     brand_context: state.brandContext,
-      //     attached_context: attachedContext,
-      //   }),
-      // });
-      // const data: RefineAssetResponse = await res.json();
+      const activeContent = phase.assets[phase.currentIndex].content;
+      const res = await fetch("/api/refine-phase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          brandContext: state.brandContext,
+          previous_content: activeContent,
+          user_feedback: feedback,
+          attachedContext: attachedContext?.length ? attachedContext : undefined,
+        }),
+      });
+      if (!res.ok) {
+         const errData = await res.json().catch(()=>({}));
+         let msg = errData.detail || "API request failed";
+         if (typeof msg !== 'string') msg = JSON.stringify(msg);
+         throw new Error(msg);
+      }
+      const data: RefineAssetResponse = await res.json();
 
-      const refined: BrandAsset = {
-        id: `refined-${Date.now()}`,
+      const refinedAssets: BrandAsset[] = data.options.map((opt, i) => ({
+        id: `refined-${Date.now()}-${i}`,
         type,
-        content: `[Refined] ${phase.asset.content}\n\n— Based on feedback: "${feedback}"`,
-        confidence_score: Math.min(99, phase.asset.confidence_score + Math.floor(Math.random() * 10)),
+        content: opt.content,
+        confidence_score: opt.confidence_score,
         ai_acknowledgement: `Understood. Adjusting based on: "${feedback}"`,
-      };
+      }));
 
       const updatedPhases = { ...get().phases };
       updatedPhases[type] = {
         ...updatedPhases[type],
-        asset: refined,
+        assets: refinedAssets,
+        currentIndex: 0,
         status: "pending",
         error: null,
       };
@@ -230,7 +216,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     }
   },
 
-  // ── Retry from scratch ──
+  // ── Retry ──
   retryAssetFromScratch: async (type, phaseConfig, attachedContext) => {
     const state = get();
     const phases = { ...state.phases };
@@ -242,23 +228,32 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     };
     set({ phases });
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     try {
-      // TODO: Replace with actual fetch to /api/generate-initial (single asset)
-      const mockAsset = MOCK_ASSETS[type];
-      const regenerated: BrandAsset = {
-        id: `retry-${Date.now()}`,
-        type,
-        content: `[Fresh] ${mockAsset.content}`,
-        confidence_score: 70 + Math.floor(Math.random() * 25),
-      };
+      const res = await fetch("/api/generate-phase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandContext: state.brandContext, type, attachedContext: attachedContext?.length ? attachedContext : undefined }),
+      });
+      if (!res.ok) {
+         const errData = await res.json().catch(()=>({}));
+         let msg = errData.detail || "API request failed";
+         if (typeof msg !== 'string') msg = JSON.stringify(msg);
+         throw new Error(msg);
+      }
+      const data: GenerateInitialResponse = await res.json();
+
+      const newAssets: BrandAsset[] = data.options.map((opt, i) => ({
+         id: `retry-${Date.now()}-${i}`,
+         type,
+         content: opt.content,
+         confidence_score: opt.confidence_score
+      }));
 
       const updatedPhases = { ...get().phases };
       updatedPhases[type] = {
         ...updatedPhases[type],
-        asset: regenerated,
+        assets: newAssets,
+        currentIndex: 0,
         status: "pending",
         error: null,
       };
@@ -279,10 +274,13 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
 
   getAcceptedPhases: () => {
     const phases = get().phases;
-    return STAGES.filter((s) => phases[s.assetType].status === "accepted" && phases[s.assetType].asset)
-      .map((s) => ({
-        type: s.assetType,
-        content: phases[s.assetType].asset!.content,
-      }));
+    return STAGES.filter((s) => phases[s.assetType].status === "accepted" && phases[s.assetType].assets.length > 0)
+      .map((s) => {
+        const p = phases[s.assetType];
+        return {
+          phase: s.assetType,
+          content: p.assets[p.currentIndex].content,
+        };
+      });
   },
 }));

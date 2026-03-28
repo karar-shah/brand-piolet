@@ -15,7 +15,7 @@ interface ContextAttachmentProps {
 
 function ContextAttachment({ currentType, selected, onToggle }: ContextAttachmentProps) {
   const { getAcceptedPhases } = useBrandStore();
-  const acceptedPhases = getAcceptedPhases().filter((p) => p.type !== currentType);
+  const acceptedPhases = getAcceptedPhases().filter((p) => p.phase !== currentType);
   const [isOpen, setIsOpen] = useState(false);
 
   if (acceptedPhases.length === 0) return null;
@@ -34,15 +34,15 @@ function ContextAttachment({ currentType, selected, onToggle }: ContextAttachmen
 
       {isOpen && (
         <div className="flex flex-wrap gap-2 animate-card-in">
-          {acceptedPhases.map((phase) => {
-            const stage = STAGES.find((s) => s.assetType === phase.type);
-            const isSelected = selected.some((s) => s.phase === phase.type);
+          {acceptedPhases.map((phaseContext) => {
+            const stage = STAGES.find((s) => s.assetType === phaseContext.phase);
+            const isSelected = selected.some((s) => s.phase === phaseContext.phase);
 
             return (
               <button
-                key={phase.type}
+                key={phaseContext.phase}
                 type="button"
-                onClick={() => onToggle({ phase: phase.type, content: phase.content })}
+                onClick={() => onToggle({ phase: phaseContext.phase, content: phaseContext.content })}
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
                   isSelected
