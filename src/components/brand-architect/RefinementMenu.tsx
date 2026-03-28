@@ -63,12 +63,13 @@ function ContextAttachment({ currentType, selected, onToggle }: ContextAttachmen
 
 interface RefinementMenuProps {
   assetType: AssetType;
+  initialMode: "improve" | "scratch";
   onClose: () => void;
 }
 
-export function RefinementMenu({ assetType, onClose }: RefinementMenuProps) {
+export function RefinementMenu({ assetType, initialMode, onClose }: RefinementMenuProps) {
   const { refineAsset, retryAssetFromScratch } = useBrandStore();
-  const [mode, setMode] = useState<"improve" | "scratch">("improve");
+  const [mode, setMode] = useState<"improve" | "scratch">(initialMode);
   const [feedback, setFeedback] = useState("");
   const [phaseConfig, setPhaseConfig] = useState<Record<string, string>>({});
   const [attachedContext, setAttachedContext] = useState<AttachedContext[]>([]);
@@ -237,8 +238,8 @@ export function RefinementMenu({ assetType, onClose }: RefinementMenuProps) {
           "w-full flex items-center justify-center gap-2 rounded-xl py-3 font-semibold text-sm transition-all duration-300 cursor-pointer",
           !isWorking && (mode === "improve" ? feedback.trim() : true)
             ? mode === "improve"
-              ? "bg-gradient-to-r from-brand-gold to-brand-gold-light text-brand-black hover:shadow-[0_0_20px_rgba(212,168,83,0.25)]"
-              : "bg-gradient-to-r from-brand-teal to-brand-teal-light text-brand-black hover:shadow-[0_0_20px_rgba(46,196,182,0.25)]"
+              ? "bg-linear-to-r from-brand-gold to-brand-gold-light text-brand-black hover:shadow-[0_0_20px_rgba(212,168,83,0.25)]"
+              : "bg-linear-to-r from-brand-teal to-brand-teal-light text-brand-black hover:shadow-[0_0_20px_rgba(46,196,182,0.25)]"
             : "bg-brand-charcoal/60 text-muted-foreground cursor-not-allowed"
         )}
       >

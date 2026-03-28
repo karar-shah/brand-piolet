@@ -46,7 +46,7 @@ const AUDIENCE_OPTIONS = [
 ];
 
 export function ConfigForm() {
-  const { setBrandContext, fetchInitialAssets } = useBrandStore();
+  const { setBrandContext, generatePhaseAsset } = useBrandStore();
 
   const [form, setForm] = useState<Partial<BrandContext>>({
     brand_name: "",
@@ -73,7 +73,7 @@ export function ConfigForm() {
     if (!isValid) return;
     setIsSubmitting(true);
     setBrandContext(form as BrandContext);
-    await fetchInitialAssets();
+    await generatePhaseAsset("tagline");
     setIsSubmitting(false);
   };
 
@@ -218,7 +218,7 @@ export function ConfigForm() {
             className={cn(
               "w-full flex items-center justify-center gap-3 rounded-xl py-3.5 font-semibold text-sm transition-all duration-300",
               isValid && !isSubmitting
-                ? "bg-gradient-to-r from-brand-gold to-brand-gold-light text-brand-black hover:shadow-[0_0_30px_rgba(212,168,83,0.3)] hover:scale-[1.01] cursor-pointer"
+                ? "bg-linear-to-r from-brand-gold to-brand-gold-light text-brand-black hover:shadow-[0_0_30px_rgba(212,168,83,0.3)] hover:scale-[1.01] cursor-pointer"
                 : "bg-brand-charcoal/60 text-muted-foreground cursor-not-allowed"
             )}
           >

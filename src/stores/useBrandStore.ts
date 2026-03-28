@@ -62,7 +62,7 @@ interface BrandStore {
   setStage: (stage: StageId) => void;
 
   // ── Actions: Asset lifecycle ──
-  fetchInitialAssets: () => Promise<void>;
+  generatePhaseAsset: (type: AssetType) => Promise<void>;
   acceptAsset: (type: AssetType) => void;
   refineAsset: (
     type: AssetType,
@@ -116,58 +116,54 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
   // ── Navigation ──
   setStage: (stage) => set({ currentStage: stage }),
 
-  // ── Fetch initial assets (mock for now) ──
-  fetchInitialAssets: async () => {
-    const { brandContext } = get();
+  // ── Fetch asset for a specific phase (mock for now) ──
+  generatePhaseAsset: async (type) => {
+    const { brandContext, getAcceptedPhases } = get();
     if (!brandContext) return;
 
-    // Set all phases to loading
+    // Set target phase to loading
     const phases = get().phases;
-    const loadingPhases = { ...phases };
-    for (const stage of STAGES) {
-      loadingPhases[stage.assetType] = {
-        ...loadingPhases[stage.assetType],
-        status: "loading",
-        error: null,
-      };
-    }
-    set({ phases: loadingPhases });
+    set({
+      phases: {
+        ...phases,
+        [type]: {
+          ...phases[type],
+          status: "loading",
+          error: null,
+        },
+      },
+    });
 
     // Simulate API call with delay
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     try {
-      // TODO: Replace with actual fetch to /api/generate-initial
-      // const res = await fetch("/api/generate-initial", {
+      const acceptedContext = getAcceptedPhases();
+      // TODO: Replace with actual fetch to /api/generate-phase
+      // const res = await fetch("/api/generate-phase", {
       //   method: "POST",
       //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(brandContext),
+      //   body: JSON.stringify({ brandContext, type, attachedContext: acceptedContext }),
       // });
       // const data: GenerateInitialResponse = await res.json();
 
+      const mockAsset = MOCK_ASSETS[type];
       const updatedPhases = { ...get().phases };
-      for (const stage of STAGES) {
-        const mockAsset = MOCK_ASSETS[stage.assetType];
-        updatedPhases[stage.assetType] = {
-          ...updatedPhases[stage.assetType],
-          asset: { ...mockAsset, id: `${mockAsset.id}-${Date.now()}` },
-          status: "pending",
-          error: null,
-        };
-      }
+      updatedPhases[type] = {
+        ...updatedPhases[type],
+        asset: { ...mockAsset, id: `${mockAsset.id}-${Date.now()}` },
+        status: "pending",
+        error: null,
+      };
       set({ phases: updatedPhases });
     } catch (err) {
-      // Per-phase error — preserves user input
+      // Preserve user config on error
       const errorPhases = { ...get().phases };
-      for (const stage of STAGES) {
-        if (errorPhases[stage.assetType].status === "loading") {
-          errorPhases[stage.assetType] = {
-            ...errorPhases[stage.assetType],
-            status: "error",
-            error: err instanceof Error ? err.message : "Generation failed. Please retry.",
-          };
-        }
-      }
+      errorPhases[type] = {
+        ...errorPhases[type],
+        status: "error",
+        error: err instanceof Error ? err.message : "Generation failed. Please retry.",
+      };
       set({ phases: errorPhases });
     }
   },

@@ -3,13 +3,13 @@
 import { useState, useRef, useCallback } from "react";
 import { useBrandStore } from "@/stores/useBrandStore";
 import { STAGES } from "@/types/brand";
+import type { StageId } from "@/types/brand";
 import { cn } from "@/lib/utils";
 import { ConfidenceScore } from "./ConfidenceScore";
 import { RefinementMenu } from "./RefinementMenu";
 import { LoadingSkeleton } from "./LoadingSkeleton";
 import {
   ThumbsUp,
-  ThumbsDown,
   AlertCircle,
   RotateCcw,
   Sparkles,
@@ -17,6 +17,10 @@ import {
   PenTool,
   Megaphone,
   Zap,
+  Copy,
+  Check,
+  MessageSquare,
+  ArrowRight,
 } from "lucide-react";
 
 const STAGE_ICONS = {
@@ -27,62 +31,33 @@ const STAGE_ICONS = {
 } as const;
 
 export function SwipeDeck() {
-  const { currentStage, phases, acceptAsset, fetchInitialAssets } = useBrandStore();
+  const { currentStage, phases, acceptAsset, generatePhaseAsset, setStage } = useBrandStore();
   const stage = STAGES[currentStage];
   const phase = phases[stage.assetType];
   const Icon = STAGE_ICONS[stage.icon as keyof typeof STAGE_ICONS];
 
-  const [isRefining, setIsRefining] = useState(false);
-  const [swipeAnim, setSwipeAnim] = useState<"left" | "right" | null>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [refinementMode, setRefinementMode] = useState<"improve" | "scratch" | false>(false);
+  const [copied, setCopied] = useState(false);
 
-  // ── Touch / Swipe handling (mobile) ──
-  const touchStartX = useRef(0);
-  const touchDeltaX = useRef(0);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchDeltaX.current = 0;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
-    if (cardRef.current) {
-      const rotation = touchDeltaX.current * 0.05;
-      cardRef.current.style.transform = `translateX(${touchDeltaX.current}px) rotate(${rotation}deg)`;
-      cardRef.current.style.transition = "none";
+  const handleCopy = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
     }
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (cardRef.current) {
-      cardRef.current.style.transition = "transform 0.3s ease";
-      if (Math.abs(touchDeltaX.current) > 100) {
-        if (touchDeltaX.current > 0) {
-          handleAccept();
-        } else {
-          handleReject();
-        }
-      } else {
-        cardRef.current.style.transform = "";
-      }
-    }
-  }, []);
-
-  const handleAccept = () => {
-    setSwipeAnim("right");
-    setTimeout(() => {
-      acceptAsset(stage.assetType);
-      setSwipeAnim(null);
-    }, 400);
   };
 
-  const handleReject = () => {
-    setSwipeAnim("left");
-    setTimeout(() => {
-      setSwipeAnim(null);
-      setIsRefining(true);
-    }, 400);
+  const handleNextPhase = () => {
+    if (currentStage < STAGES.length - 1) {
+      const nextId = (currentStage + 1) as StageId;
+      setStage(nextId);
+      const nextStage = STAGES[nextId];
+      if (!phases[nextStage.assetType].asset && phases[nextStage.assetType].status !== "loading") {
+        generatePhaseAsset(nextStage.assetType);
+      }
+    }
   };
 
   // ── Loading state ──
@@ -106,7 +81,7 @@ export function SwipeDeck() {
           </div>
           <button
             type="button"
-            onClick={() => fetchInitialAssets()}
+            onClick={() => generatePhaseAsset(stage.assetType)}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-gold/15 text-brand-gold text-sm font-medium hover:bg-brand-gold/25 transition-all cursor-pointer"
           >
             <RotateCcw className="h-4 w-4" />
@@ -132,11 +107,12 @@ export function SwipeDeck() {
   }
 
   // ── Refinement mode ──
-  if (isRefining) {
+  if (refinementMode) {
     return (
       <RefinementMenu
         assetType={stage.assetType}
-        onClose={() => setIsRefining(false)}
+        initialMode={refinementMode}
+        onClose={() => setRefinementMode(false)}
       />
     );
   }
@@ -163,41 +139,49 @@ export function SwipeDeck() {
         </div>
 
         {/* Content */}
-        <div className="rounded-xl bg-brand-teal/5 border border-brand-teal/10 p-5">
-          <p className="text-sm text-brand-cream/90 leading-relaxed whitespace-pre-wrap">
-            {phase.asset.content}
+        <div className="relative rounded-xl bg-brand-teal/5 border border-brand-teal/10 p-5 group">
+          <p className="text-sm text-brand-cream/90 leading-relaxed whitespace-pre-wrap pr-8">
+            {phase.asset!.content}
           </p>
+          <button
+            onClick={() => handleCopy(phase.asset!.content)}
+            className="absolute top-4 right-4 text-brand-teal/50 hover:text-brand-teal transition-colors cursor-pointer"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* Edit option */}
         <button
           type="button"
-          onClick={() => setIsRefining(true)}
+          onClick={() => setRefinementMode("improve")}
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-brand-gold transition-colors mx-auto cursor-pointer"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Change your mind? Refine this asset
         </button>
+
+        {/* Move to Next Phase Button */}
+        {currentStage < STAGES.length - 1 && (
+          <div className="pt-4 border-t border-brand-teal/10 mt-6">
+            <button
+              onClick={handleNextPhase}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 bg-linear-to-r from-brand-teal to-brand-teal-light text-brand-black hover:shadow-[0_0_30px_rgba(46,196,182,0.25)] hover:scale-[1.01] cursor-pointer"
+            >
+              Move to Next Phase
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── Active card (swipeable) ──
+  // ── Active card (3 buttons) ──
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 animate-card-in">
       {/* The Card */}
-      <div
-        ref={cardRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className={cn(
-          "glass-card rounded-2xl p-6 sm:p-8 space-y-5 touch-pan-y select-none",
-          swipeAnim === "left" && "animate-swipe-left",
-          swipeAnim === "right" && "animate-swipe-right",
-          !swipeAnim && "animate-card-in"
-        )}
-      >
+      <div className="glass-card rounded-2xl p-6 sm:p-8 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -213,20 +197,26 @@ export function SwipeDeck() {
         </div>
 
         {/* AI Acknowledgement (if from refinement) */}
-        {phase.asset.ai_acknowledgement && (
+        {phase.asset!.ai_acknowledgement && (
           <div className="flex items-start gap-2 rounded-lg bg-brand-teal/5 border border-brand-teal/10 px-4 py-2.5">
             <Zap className="h-3.5 w-3.5 text-brand-teal mt-0.5 shrink-0" />
             <p className="text-xs text-brand-teal/80 leading-relaxed">
-              {phase.asset.ai_acknowledgement}
+              {phase.asset!.ai_acknowledgement}
             </p>
           </div>
         )}
 
         {/* Content */}
-        <div className="rounded-xl bg-brand-black/30 border border-brand-gold/8 p-5 min-h-[120px]">
-          <p className="text-sm sm:text-base text-brand-cream/90 leading-relaxed whitespace-pre-wrap">
-            {phase.asset.content}
+        <div className="relative rounded-xl bg-brand-black/30 border border-brand-gold/8 p-5 min-h-[120px] group">
+          <p className="text-sm sm:text-base text-brand-cream/90 leading-relaxed whitespace-pre-wrap pr-8">
+            {phase.asset!.content}
           </p>
+          <button
+            onClick={() => handleCopy(phase.asset!.content)}
+            className="absolute top-4 right-4 text-muted-foreground hover:text-brand-cream transition-colors cursor-pointer"
+          >
+            {copied ? <Check className="h-4 w-4 text-brand-teal" /> : <Copy className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* Confidence label */}
@@ -238,39 +228,35 @@ export function SwipeDeck() {
         </div>
       </div>
 
-      {/* Desktop Action Buttons */}
-      <div className="flex items-center gap-4">
+      {/* Action Buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
           type="button"
-          onClick={handleReject}
-          disabled={!!swipeAnim}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 group cursor-pointer",
-            "border border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/15 hover:border-red-500/40 hover:shadow-[0_0_20px_rgba(239,68,68,0.1)]"
-          )}
+          onClick={() => setRefinementMode("scratch")}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-xs sm:text-sm transition-all duration-300 border border-brand-gold/10 bg-brand-charcoal hover:border-brand-gold/30 hover:bg-brand-gold/5 text-muted-foreground hover:text-brand-cream cursor-pointer"
         >
-          <ThumbsDown className="h-4 w-4 group-hover:scale-110 transition-transform" />
-          Reject & Refine
+          <RotateCcw className="h-3.5 w-3.5" />
+          Start Fresh
         </button>
 
         <button
           type="button"
-          onClick={handleAccept}
-          disabled={!!swipeAnim}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 group cursor-pointer",
-            "bg-gradient-to-r from-brand-teal to-brand-teal-light text-brand-black hover:shadow-[0_0_30px_rgba(46,196,182,0.25)] hover:scale-[1.01]"
-          )}
+          onClick={() => setRefinementMode("improve")}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-xs sm:text-sm transition-all duration-300 border border-brand-teal/20 bg-brand-teal/5 text-brand-teal hover:bg-brand-teal/15 hover:shadow-[0_0_15px_rgba(46,196,182,0.15)] cursor-pointer"
         >
-          <ThumbsUp className="h-4 w-4 group-hover:scale-110 transition-transform" />
+          <MessageSquare className="h-3.5 w-3.5" />
+          Improve Current
+        </button>
+
+        <button
+          type="button"
+          onClick={() => acceptAsset(stage.assetType)}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-300 bg-linear-to-r from-brand-teal to-brand-teal-light text-brand-black hover:shadow-[0_0_20px_rgba(46,196,182,0.25)] hover:scale-[1.01] cursor-pointer"
+        >
+          <ThumbsUp className="h-3.5 w-3.5" />
           Accept
         </button>
       </div>
-
-      {/* Mobile swipe hint */}
-      <p className="text-center text-[10px] text-muted-foreground/30 sm:hidden">
-        Swipe right to accept · Swipe left to refine
-      </p>
     </div>
   );
 }

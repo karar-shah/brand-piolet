@@ -24,7 +24,7 @@ export function StageNavigator() {
 
         {/* Progress fill */}
         <div
-          className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 bg-gradient-to-r from-brand-gold to-brand-teal rounded-full transition-all duration-500 ease-out"
+          className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 bg-linear-to-r from-brand-gold to-brand-teal rounded-full transition-all duration-500 ease-out"
           style={{ width: `${(currentStage / (STAGES.length - 1)) * 100}%` }}
         />
 
@@ -51,7 +51,7 @@ export function StageNavigator() {
                 className={cn(
                   "flex items-center justify-center rounded-full transition-all duration-300",
                   isActive
-                    ? "h-12 w-12 bg-gradient-to-br from-brand-gold to-brand-gold-dark shadow-[0_0_20px_rgba(212,168,83,0.3)] scale-110"
+                    ? "h-12 w-12 bg-linear-to-br from-brand-gold to-brand-gold-dark shadow-[0_0_20px_rgba(212,168,83,0.3)] scale-110"
                     : isAccepted
                     ? "h-10 w-10 bg-brand-teal/20 border-2 border-brand-teal"
                     : isError
